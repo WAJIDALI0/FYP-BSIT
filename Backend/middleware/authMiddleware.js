@@ -1,18 +1,27 @@
-import jwt from "jsonwebtoken";
-import Client from "../models/Client.js";
+import jwt from 'jsonwebtoken';
+import Client from '../models/Client.js';
 
-export const protect = async (req, res, next) => {
-  const auth = req.headers.authorization;
-  if (auth && auth.startsWith("Bearer")) {
+// Middleware to protect client routes
+export const protectClient = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
-      const token = auth.split(" ")[1];
+      const token = authHeader.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await Client.findById(decoded.id).select("-password");
+      
+      // Attach the user object (excluding password) to the request
+      req.user = await Client.findById(decoded.id).select('-password');
+      
+      if (!req.user) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+
       next();
-    } catch (err) {
-      res.status(401).json({ message: "Not authorized, token failed" });
+    } catch (error) {
+      return res.status(401).json({ message: 'Not authorized, token invalid' });
     }
   } else {
-    res.status(401).json({ message: "No token provided" });
+    return res.status(401).json({ message: 'Not authorized, no token provided' });
   }
 };

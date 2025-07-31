@@ -96,3 +96,104 @@ export const forgotFreelancerPassword = async (req, res) => {
   }
 };
 
+// Update Email
+export const updateFreelancerEmail = async (req, res) => {
+  try {
+    const { id } = req.user; // from JWT
+    const { newEmail } = req.body;
+
+    if (!newEmail) return res.status(400).json({ message: "New email required" });
+
+    const exists = await Freelancer.findOne({ email: newEmail });
+    if (exists) return res.status(400).json({ message: "Email already in use" });
+
+    const updated = await Freelancer.findByIdAndUpdate(
+      id,
+      { email: newEmail },
+      { new: true }
+    );
+
+    res.status(200).json({ message: "Email updated", freelancer: updated });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to update email" });
+  }
+};
+
+// Reset Password
+export const resetFreelancerPassword = async (req, res) => {
+  try {
+    const { id } = req.user;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
+
+    const freelancer = await Freelancer.findById(id);
+    if (!freelancer) return res.status(404).json({ message: "Freelancer not found" });
+
+    const isMatch = await comparePassword(currentPassword, freelancer.password);
+    if (!isMatch) return res.status(401).json({ message: "Incorrect current password" });
+
+    freelancer.password = await hashPassword(newPassword);
+    await freelancer.save();
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Password update failed" });
+  }
+};
+
+
+
+export const updateFreelancerProfile = async (req, res) => {
+  try {
+    const { id } = req.user; // From protect middleware
+
+    const {
+      firstName,
+      lastName,
+      profileImage,
+      country,
+      city,
+      timezone,
+      title,
+      description,
+      hourlyRate,
+      totalProjects,
+      successfulProjects,
+      averageRating,
+      keywords
+    } = req.body;
+
+    const freelancer = await Freelancer.findById(id);
+    if (!freelancer) {
+      return res.status(404).json({ message: 'Freelancer not found' });
+    }
+
+    // Update profile fields
+    freelancer.firstName = firstName || freelancer.firstName;
+    freelancer.lastName = lastName || freelancer.lastName;
+    freelancer.profileImage = profileImage || freelancer.profileImage;
+    freelancer.country = country || freelancer.country;
+    freelancer.city = city || freelancer.city;
+    freelancer.timezone = timezone || freelancer.timezone;
+    freelancer.title = title || freelancer.title;
+    freelancer.description = description || freelancer.description;
+    freelancer.hourlyRate = hourlyRate || freelancer.hourlyRate;
+    freelancer.totalProjects = totalProjects || freelancer.totalProjects;
+    freelancer.successfulProjects = successfulProjects || freelancer.successfulProjects;
+    freelancer.averageRating = averageRating || freelancer.averageRating;
+    freelancer.keywords = Array.isArray(keywords) ? keywords : freelancer.keywords;
+
+    await freelancer.save();
+
+    res.status(200).json({ message: 'Profile updated successfully', freelancer });
+
+  } catch (err) {
+    console.error('Update Error:', err);
+    res.status(500).json({ message: 'Server error while updating profile' });
+  }
+};

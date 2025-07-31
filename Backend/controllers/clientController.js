@@ -1,5 +1,8 @@
 // controllers/clientController.js
 import Client from "../models/Client.js";
+import Project from "../models/Project.js";
+import path from "path";
+import fs from "fs";
 import { hashPassword,comparePassword } from "../utils/hashPassword.js";
 import nodemailer from 'nodemailer';
 import jwt from "jsonwebtoken";
@@ -129,4 +132,75 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
+// ...................................................................
+
+// GET Client Profile
+export const getClientProfile = async (req, res) => {
+  try {
+    const client = await Client.findById(req.user._id).select("-password");
+    if (!client) return res.status(404).json({ message: "Client not found" });
+    res.json({ client });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// UPDATE Client Profile
+export const updateClientProfile = async (req, res) => {
+  try {
+    const { firstName, lastName, companyName } = req.body;
+    const client = await Client.findById(req.user._id);
+
+    if (!client) return res.status(404).json({ message: "Client not found" });
+
+    client.firstName = firstName || client.firstName;
+    client.lastName = lastName || client.lastName;
+    client.companyName = companyName || client.companyName;
+
+    await client.save();
+
+    res.json({ client });
+  } catch (err) {
+    res.status(500).json({ message: "Profile update failed" });
+  }
+};
+
+// UPLOAD Profile Image
+export const uploadClientProfileImage = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    const imagePath = `/uploads/${req.file.filename}`;
+    const client = await Client.findById(req.user._id);
+    if (!client) return res.status(404).json({ message: "Client not found" });
+
+    client.profileImage = imagePath;
+    await client.save();
+
+    res.json({ imageUrl: imagePath });
+  } catch (err) {
+    res.status(500).json({ message: "Image upload failed" });
+  }
+};
+
+// CREATE Project
+export const createProject = async (req, res) => {
+  try {
+    const { name, description, deadline, price } = req.body;
+
+    const project = new Project({
+      name,
+      description,
+      deadline,
+      price,
+      client: req.user._id,
+    });
+
+    await project.save();
+
+    res.status(201).json({ message: "Project created", project });
+  } catch (err) {
+    res.status(500).json({ message: "Project creation failed" });
+  }
+};
 
